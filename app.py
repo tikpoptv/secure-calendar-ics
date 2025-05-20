@@ -87,6 +87,17 @@ DESCRIPTION:กิจกรรมวันที่ 30 พ.ค.
 LOCATION:ห้องจัดเลี้ยง ชั้น 3
 END:VEVENT
 
+BEGIN:VEVENT
+UID:event-22may2025@example.com
+SUMMARY:กิจกรรมทดสอบวันที่ 22
+DTSTART;TZID=Asia/Bangkok:20250522T130000
+DTEND;TZID=Asia/Bangkok:20250522T143000
+DTSTAMP:{now}
+DESCRIPTION:ทดสอบความสามารถในการ sync อัตโนมัติ
+LOCATION:ห้อง SmartLab ชั้น 4
+END:VEVENT
+
+
 END:VCALENDAR
 """
     return Response(ics_content, mimetype='text/calendar')
