@@ -4,12 +4,17 @@ import os
 
 app = Flask(__name__)
 
-# ✅ ดึง token จาก environment variable (รองรับทั้ง .env และ Coolify)
 ALLOWED_TOKENS = set(os.getenv("ALLOWED_TOKENS", "").split(","))
+
+@app.route("/")
+def index():
+    return (
+        "<h2>The system is currently active and ready.</h2>"
+        "<p>This page is not intended for direct access.</p>"
+    )
 
 @app.route("/calendar.ics")
 def calendar():
-    # 🔐 ตรวจสอบ token
     token = request.args.get("token")
     if token not in ALLOWED_TOKENS:
         abort(403)
@@ -18,7 +23,7 @@ def calendar():
 
     ics_content = f"""BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Your Company//Secure Calendar//EN
+PRODID:-//SmartHome//Secure Calendar//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
 
