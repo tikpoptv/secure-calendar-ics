@@ -1,0 +1,52 @@
+# 🐍 Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+.env
+.venv/
+venv/
+instance/
+*.db
+*.sqlite3
+
+# 📦 Pipenv / poetry / requirements
+pip-log.txt
+pip-delete-this-directory.txt
+
+# 🚢 Docker
+*.log
+Dockerfile~
+docker-compose.override.yml
+*.pid
+
+# 🔧 VS Code / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 🌐 Flask
+*.egg-info/
+*.dist-info/
+.env
+.env.*
+*.cover
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 🌩️ ngrok (ถ้ามีไฟล์ config)
+ngrok.yml
+ngrok.log
+
+# 🔐 Keys, Tokens
+secrets/
+private.key
+public.key
+
+# 📄 System-specific
+.DS_Store
+Thumbs.db
