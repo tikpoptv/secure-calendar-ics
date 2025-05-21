@@ -21,7 +21,7 @@ A secure Flask-based web service that generates iCalendar (.ics) files for event
 
 1. Clone the repository:
 ```bash
-git clone [your-repository-url]
+git clone https://github.com/tikpoptv/secure-calendar-ics
 cd calendar
 ```
 
