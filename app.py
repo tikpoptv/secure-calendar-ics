@@ -1,10 +1,22 @@
 from flask import Flask, Response, request, abort
 from datetime import datetime
 import os
+import json
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from config import Config, DataSource
 
 app = Flask(__name__)
 
-ALLOWED_TOKENS = set(os.getenv("ALLOWED_TOKENS", "").split(","))
+def get_db_connection():
+    """Create a database connection"""
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT"),
+        database=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD")
+    )
 
 @app.route("/")
 def index():
@@ -13,94 +25,93 @@ def index():
         "<p>This page is not intended for direct access.</p>"
     )
 
-@app.route("/calendar.ics")
-def calendar():
-    token = request.args.get("token")
-    if token not in ALLOWED_TOKENS:
-        abort(403)
+def load_json_events():
+    """Load events from JSON file"""
+    try:
+        with open(Config.JSON_FILE_PATH, 'r', encoding='utf-8') as f:
+            return json.load(f)['events']
+    except FileNotFoundError:
+        return []
 
+def load_db_events():
+    """Load events from database"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Query events
+        cur.execute("""
+            SELECT 
+                uid,
+                summary,
+                start_time as start,
+                end_time as end,
+                description,
+                location
+            FROM events
+            ORDER BY start_time
+        """)
+        
+        events = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        # Convert datetime objects to ISO format strings
+        for event in events:
+            event['start'] = event['start'].isoformat()
+            event['end'] = event['end'].isoformat()
+        
+        return events
+    except Exception as e:
+        app.logger.error(f"Database error: {str(e)}")
+        return []
+
+def generate_ics_content(events):
     now = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-
+    
     ics_content = f"""BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//SmartHome//Secure Calendar//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
-
-BEGIN:VEVENT
-UID:event-19may2025@example.com
-SUMMARY:กิจกรรมอุ่นเครื่องก่อนเริ่มงาน
-DTSTART;TZID=Asia/Bangkok:20250519T090000
-DTEND;TZID=Asia/Bangkok:20250519T100000
-DTSTAMP:{now}
-DESCRIPTION:กิจกรรมเตรียมความพร้อมประจำปี
-LOCATION:ลานกิจกรรมหน้าอาคาร
-END:VEVENT
-
-BEGIN:VEVENT
-UID:event-23may2025@example.com
-SUMMARY:กิจกรรมเริ่มต้นเดือน
-DTSTART;TZID=Asia/Bangkok:20250523T150000
-DTEND;TZID=Asia/Bangkok:20250523T160000
-DTSTAMP:{now}
-DESCRIPTION:กิจกรรมเปิดต้นเดือนพฤษภาคม
-LOCATION:ห้อง Creative ชั้น 6
-END:VEVENT
-
-BEGIN:VEVENT
-UID:event-26may2025-v8@example.com
-SUMMARY:กิจกรรมเวอร์ชันล่าสุด
-DTSTART;TZID=Asia/Bangkok:20250526T100000
-DTEND;TZID=Asia/Bangkok:20250526T113000
-DTSTAMP:{now}
-DESCRIPTION:กิจกรรมวันที่ 26 พ.ค. (อัปเดตเมื่อ {now})
-LOCATION:ชั้น 5 อาคารฝึกอบรม
-END:VEVENT
-
-BEGIN:VEVENT
-UID:event-27may2025@example.com
-SUMMARY:กิจกรรมเพิ่มเติมวันที่ 27
-DTSTART;TZID=Asia/Bangkok:20250527T140000
-DTEND;TZID=Asia/Bangkok:20250527T150000
-DTSTAMP:{now}
-DESCRIPTION:กิจกรรมวันที่ 27 พ.ค.
-LOCATION:ห้องสัมมนาเล็ก ชั้น 2
-END:VEVENT
-
-BEGIN:VEVENT
-UID:event-28may2025@example.com
-SUMMARY:กิจกรรมเสริมวันที่ 28
-DTSTART;TZID=Asia/Bangkok:20250528T090000
-DTEND;TZID=Asia/Bangkok:20250528T100000
-DTSTAMP:{now}
-DESCRIPTION:กิจกรรมวันที่ 28 พ.ค.
-LOCATION:ห้องประชุมใหญ่ ชั้น 1
-END:VEVENT
-
-BEGIN:VEVENT
-UID:event-30may2025@example.com
-SUMMARY:กิจกรรมปิดท้ายเดือนพฤษภาคม
-DTSTART;TZID=Asia/Bangkok:20250530T130000
-DTEND;TZID=Asia/Bangkok:20250530T140000
-DTSTAMP:{now}
-DESCRIPTION:กิจกรรมวันที่ 30 พ.ค.
-LOCATION:ห้องจัดเลี้ยง ชั้น 3
-END:VEVENT
-
-BEGIN:VEVENT
-UID:event-22may2025@example.com
-SUMMARY:กิจกรรมทดสอบวันที่ 22
-DTSTART;TZID=Asia/Bangkok:20250522T130000
-DTEND;TZID=Asia/Bangkok:20250522T143000
-DTSTAMP:{now}
-DESCRIPTION:ทดสอบความสามารถในการ sync อัตโนมัติ
-LOCATION:ห้อง SmartLab ชั้น 4
-END:VEVENT
-
-
-END:VCALENDAR
 """
+    
+    for event in events:
+        start_dt = datetime.fromisoformat(event['start'])
+        end_dt = datetime.fromisoformat(event['end'])
+        
+        ics_content += f"""
+BEGIN:VEVENT
+UID:{event['uid']}
+SUMMARY:{event['summary']}
+DTSTART;TZID=Asia/Bangkok:{start_dt.strftime('%Y%m%dT%H%M%S')}
+DTEND;TZID=Asia/Bangkok:{end_dt.strftime('%Y%m%dT%H%M%S')}
+DTSTAMP:{now}
+DESCRIPTION:{event['description']}
+LOCATION:{event['location']}
+END:VEVENT
+"""
+    
+    ics_content += "\nEND:VCALENDAR"
+    return ics_content
+
+@app.route("/calendar.ics")
+def calendar():
+    token = request.args.get("token")
+    if token not in Config.ALLOWED_TOKENS:
+        abort(403)
+
+    if Config.DATA_SOURCE == DataSource.JSON:
+        events = load_json_events()
+    else:
+        events = load_db_events()
+    
+    ics_content = generate_ics_content(events)
     return Response(ics_content, mimetype='text/calendar')
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5555, debug=True)
+    app.run(
+        host=Config.HOST,
+        port=Config.PORT,
+        debug=Config.DEBUG
+    )
