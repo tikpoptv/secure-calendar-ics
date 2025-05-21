@@ -160,3 +160,5 @@ docker run -p 5555:5555 \
   - `DB_NAME`: Database name
   - `DB_USER`: Database user
   - `DB_PASSWORD`: Database password
+
+This project is licensed under the MIT License - see the LICENSE file for details.
